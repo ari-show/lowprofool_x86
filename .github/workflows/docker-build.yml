@@ -16,10 +16,18 @@ jobs:
       packages: write
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Build the Docker image
       run: |
-        TAG=$(date +%Y-%m%d-%H-%M)
-        docker build . --file Dockerfile --tag ghcr.io/shotaarima/lowprofool_x86-jupyter:${TAG}
-        docker login ghcr.io -u shotaarima -p ${{ secrets.GITHUB_TOKEN }}
-        docker push ghcr.io/shotaarima/lowprofool_x86-jupyter:${TAG}
+        IMAGE="ghcr.io/ari-show/lowprofool_x86-jupyter:$(date +%Y-%m%d-%H-%M)"
+        echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+        docker build . --file Dockerfile --tag "$IMAGE" --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+    - name: Log in to GHCR
+      if: github.event_name == 'push'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_ACTOR: ${{ github.actor }}
+      run: echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
+    - name: Push the Docker image
+      if: github.event_name == 'push'
+      run: docker push "$IMAGE"
